@@ -3,6 +3,8 @@ repo/.claude/
 
 # Session / conversion artifacts
 7d291702-439e-46ce-9b70-b2474338ac1d.jsonl
+47c8bc73-8f5e-49e3-83e5-87f6fd0cb8a9.jsonl
+377d217a-cccd-4a07-8e18-6d3556f20868.jsonl
 convert_ai_session.py
 
 # Python dependency / cache artifacts

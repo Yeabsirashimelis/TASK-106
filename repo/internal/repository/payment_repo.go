@@ -183,6 +183,16 @@ func (r *PaymentRepository) DeleteExpiredIdempotencyKeys(ctx context.Context, no
 	return result.RowsAffected()
 }
 
+func (r *PaymentRepository) DeleteExpiredIdempotencyKeyForAccount(ctx context.Context, accountID uuid.UUID, key string, now time.Time) error {
+	_, err := r.db.ExecContext(ctx,
+		`DELETE FROM idempotency_keys WHERE account_id = $1 AND idempotency_key = $2 AND window_end <= $3`,
+		accountID, key, now)
+	if err != nil {
+		return fmt.Errorf("payment_repo.DeleteExpiredIdempotencyKeyForAccount: %w", err)
+	}
+	return nil
+}
+
 // Reconciliation report CRUD
 
 func (r *PaymentRepository) CreateReconciliationReport(ctx context.Context, report *models.ReconciliationReport) error {

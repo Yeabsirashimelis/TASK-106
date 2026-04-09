@@ -139,6 +139,9 @@ func (h *ResourceHandler) SearchResources(c echo.Context) error {
 
 	resources, err := h.resourceService.SearchResources(c.Request().Context(), courseID, query, callerID, callerRole, offset, limit)
 	if err != nil {
+		if errors.Is(err, service.ErrNotCourseMember) {
+			return echo.NewHTTPError(http.StatusForbidden, err.Error())
+		}
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 
@@ -187,6 +190,12 @@ func (h *ResourceHandler) UploadVersion(c echo.Context) error {
 		}
 		if errors.Is(err, service.ErrMimeTypeNotAllowed) {
 			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		}
+		if errors.Is(err, service.ErrExtractedTextNotAllowed) {
+			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		}
+		if errors.Is(err, service.ErrResourceAccessDenied) {
+			return echo.NewHTTPError(http.StatusForbidden, err.Error())
 		}
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}

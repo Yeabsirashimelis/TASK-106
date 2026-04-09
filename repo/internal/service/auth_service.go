@@ -77,6 +77,18 @@ func (s *AuthService) Login(ctx context.Context, req *dto.LoginRequest, ipAddres
 		return nil, fmt.Errorf("auth_service.Login: %w", err)
 	}
 	if failCount >= s.cfg.MaxLoginAttempts {
+		if s.audit != nil {
+			s.audit.LogExtended(ctx, &AuditEntry{
+				EntityType: "auth",
+				EntityID:   account.ID,
+				ActorID:    account.ID,
+				Action:     "login_locked",
+				Tier:       models.TierAccess,
+				Source:     strPtr("auth/login"),
+				Reason:     strPtr("too many failed attempts"),
+				Details:    map[string]interface{}{"username": account.Username, "ip_address": ipAddress},
+			})
+		}
 		return nil, ErrAccountLocked
 	}
 
@@ -170,10 +182,32 @@ func (s *AuthService) Refresh(ctx context.Context, rawRefreshToken string) (*dto
 	// Reuse detection: if token was already revoked, revoke all tokens for the account
 	if stored.Revoked {
 		s.refreshTokenRepo.RevokeAllForAccount(ctx, stored.AccountID)
+		if s.audit != nil {
+			s.audit.LogExtended(ctx, &AuditEntry{
+				EntityType: "auth",
+				EntityID:   stored.AccountID,
+				ActorID:    stored.AccountID,
+				Action:     "refresh_token_reuse",
+				Tier:       models.TierAccess,
+				Source:     strPtr("auth/refresh"),
+				Reason:     strPtr("token reuse detected, all sessions revoked"),
+			})
+		}
 		return nil, ErrTokenReuse
 	}
 
 	if time.Now().After(stored.ExpiresAt) {
+		if s.audit != nil {
+			s.audit.LogExtended(ctx, &AuditEntry{
+				EntityType: "auth",
+				EntityID:   stored.AccountID,
+				ActorID:    stored.AccountID,
+				Action:     "refresh_token_expired",
+				Tier:       models.TierAccess,
+				Source:     strPtr("auth/refresh"),
+				Reason:     strPtr("refresh token expired"),
+			})
+		}
 		return nil, ErrTokenInvalid
 	}
 

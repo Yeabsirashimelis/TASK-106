@@ -83,7 +83,9 @@ func (s *PaymentService) CreatePayment(ctx context.Context, req *dto.CreatePayme
 		}
 	}
 
-	// Clean up expired idempotency keys (best-effort)
+	// Clean up expired idempotency key for this specific account+key (enables reuse after 24h)
+	s.repo.DeleteExpiredIdempotencyKeyForAccount(ctx, accountID, req.IdempotencyKey, now)
+	// Also clean up other expired keys (best-effort housekeeping)
 	s.repo.DeleteExpiredIdempotencyKeys(ctx, now)
 
 	var refType *string
