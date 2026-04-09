@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS seasons;
+DROP TYPE IF EXISTS season_status;
