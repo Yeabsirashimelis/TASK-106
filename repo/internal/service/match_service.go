@@ -14,16 +14,16 @@ import (
 )
 
 var (
-	ErrVenueConflict       = errors.New("venue has a conflicting match within 90 minutes")
-	ErrDuplicatePairing    = errors.New("duplicate team pairing in this round")
-	ErrConsecutiveHome     = errors.New("team would exceed 3 consecutive home games")
-	ErrConsecutiveAway     = errors.New("team would exceed 3 consecutive away games")
-	ErrOverrideRequired    = errors.New("override_reason is required to bypass scheduling conflict")
-	ErrInvalidTransition   = errors.New("invalid match status transition")
-	ErrMatchNotFound       = errors.New("match not found")
-	ErrMatchNotDraft       = errors.New("match can only be edited in Draft status")
-	ErrAssignmentLocked    = errors.New("assignments are locked once the match is In-Progress or beyond")
-	ErrReassignmentReason  = errors.New("reassignment reason is required")
+	ErrVenueConflict      = errors.New("venue has a conflicting match within 90 minutes")
+	ErrDuplicatePairing   = errors.New("duplicate team pairing in this round")
+	ErrConsecutiveHome    = errors.New("team would exceed 3 consecutive home games")
+	ErrConsecutiveAway    = errors.New("team would exceed 3 consecutive away games")
+	ErrOverrideRequired   = errors.New("override_reason is required to bypass scheduling conflict")
+	ErrInvalidTransition  = errors.New("invalid match status transition")
+	ErrMatchNotFound      = errors.New("match not found")
+	ErrMatchNotDraft      = errors.New("match can only be edited in Draft status")
+	ErrAssignmentLocked   = errors.New("assignments are locked once the match is In-Progress or beyond")
+	ErrReassignmentReason = errors.New("reassignment reason is required")
 )
 
 const maxConsecutiveHomeAway = 3
@@ -362,6 +362,10 @@ func (s *MatchService) GenerateSchedule(ctx context.Context, req *dto.GenerateSc
 	if req.StartTime != "" {
 		startTime = req.StartTime
 	}
+	parsedStartTime, err := time.Parse("15:04", startTime)
+	if err != nil {
+		return nil, fmt.Errorf("invalid start_time, use HH:MM")
+	}
 	intervalDays := req.IntervalDays
 	if intervalDays < 1 {
 		intervalDays = 7
@@ -410,7 +414,20 @@ func (s *MatchService) GenerateSchedule(ctx context.Context, req *dto.GenerateSc
 			venueID := venueIDs[venueIdx%len(venueIDs)]
 			venueIdx++
 
-			scheduledAt := fmt.Sprintf("%sT%s:00Z", matchDate.Format("2006-01-02"), startTime)
+			// Stagger matches by slot to avoid venue overlap conflicts when using
+			// a single venue (conflict rule blocks overlaps within 90 minutes).
+			slotTime := time.Date(
+				matchDate.Year(),
+				matchDate.Month(),
+				matchDate.Day(),
+				parsedStartTime.Hour(),
+				parsedStartTime.Minute(),
+				0,
+				0,
+				time.UTC,
+			).Add(time.Duration(i) * 90 * time.Minute)
+
+			scheduledAt := slotTime.Format(time.RFC3339)
 
 			createReq := &dto.CreateMatchRequest{
 				SeasonID:    req.SeasonID,
